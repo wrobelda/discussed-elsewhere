@@ -33,9 +33,3 @@ webmention source above is the way; keep the note in the README.
 
 No URL search without a token. It is reachable only through webmentions
 (Bridgy) or a server-side proxy, so it is not planned.
-
-## Distribution
-
-Publish to npm; the name is free. A Hugo site then runs
-`npm install discussed-elsewhere` and bundles `import "discussed-elsewhere"`
-through `js.Build`. Until then, sites vendor `src/discussed-elsewhere.js`.
