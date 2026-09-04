@@ -17,6 +17,6 @@
 - [ ] **Mastodon** has no URL search without a token; only via webmention
       (Bridgy) or a server-side proxy. Not planned.
 - [ ] **Distribution.** Publish to npm (name is free), so a Hugo site can
-      `npm install discussed-elsewhere` and `import { mount } from
+      `npm install discussed-elsewhere` and `import
       "discussed-elsewhere"` through `js.Build`; until then sites vendor
       `src/discussed-elsewhere.js`.

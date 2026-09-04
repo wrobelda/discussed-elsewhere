@@ -6,13 +6,14 @@
   .spacer { height: 150vh; border-left: 2px dashed #ccc; padding-left: 1rem; color: #888; }
   .loading, .empty, .is-error { color: #888; }
 </style>
+<script type="module" src="../src/discussed-elsewhere.js"></script>
 <h1>discussed-elsewhere</h1>
-<p>Scroll down: the box looks the article up once it comes within 300px of the viewport.</p>
+<p>The first box looks up at once; the second waits until it comes within 300px of the viewport.</p>
+<h2>Eager</h2>
+<discussed-elsewhere url="https://dawidwrobel.com/journal/initializing-lte-modem-using-raw-usb-communication/"></discussed-elsewhere>
 <div class="spacer">(article body)</div>
-<h2>Discussions around the web</h2>
-<div id="discussions" data-url="https://dawidwrobel.com/journal/initializing-lte-modem-using-raw-usb-communication/"></div>
-<script type="module">
-  import { mount } from "../src/discussed-elsewhere.js";
-  globalThis.discussions = mount(document.getElementById("discussions"));
-  document.addEventListener("discussed-elsewhere", (e) => console.log("settled", e.detail));
+<h2>Lazy</h2>
+<discussed-elsewhere url="https://dawidwrobel.com/journal/initializing-lte-modem-using-raw-usb-communication/" loading="lazy"></discussed-elsewhere>
+<script>
+  document.addEventListener("settled", (e) => console.log("settled", e.target, e.detail));
 </script>

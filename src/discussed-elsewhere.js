@@ -307,64 +307,103 @@ export function renderList(element, state, messages = DEFAULT_MESSAGES) {
   element.append(list);
 }
 
-// Attach to an element and look the article up once the element comes near
-// the viewport. options: everything discover() takes, plus url (defaults to
-// data-url, then <link rel=canonical>, then the page address), rootMargin
-// ("300px"), render(element, state, messages), messages, saveData (skip the
-// lookup when the reader asked for reduced data, true).
-// Returns { load(), cancel(), element }: load() runs the lookup now (once; the
-// same promise afterwards), cancel() stops watching and aborts a lookup in
-// flight.
-export function mount(element, options = {}) {
-  const doc = element.ownerDocument;
-  const win = doc.defaultView;
-  const url = options.url || element.dataset.url || doc.querySelector('link[rel~="canonical"]')?.href || win.location.href;
-  const render = options.render || renderList;
-  const messages = { ...DEFAULT_MESSAGES, ...(options.messages || {}) };
-  const controller = new AbortController();
-  let observer = null;
-  let promise = null;
+// <discussed-elsewhere url="…"> — the box as a custom element, rendered into
+// its own light DOM so the page's stylesheet styles the list. Like an <img>
+// it looks the article up as soon as it is connected, or, with
+// loading="lazy", once it comes within `root-margin` (300px) of the viewport.
+// Attributes: url (defaults to <link rel=canonical>, then the page address),
+// sources (comma-separated ids), loading ("eager" | "lazy"), root-margin,
+// lemmy-instance, timeout (ms), loading-text / empty-text / error-text.
+// Properties, for what attributes cannot carry: messages (see
+// DEFAULT_MESSAGES), render(element, state, messages), options (extra
+// discover() options, e.g. a custom fetch); a script that sets them right
+// after the element is parsed or defined still wins, the first lookup waits
+// a microtask. Methods: load() runs the lookup now (once; the same promise
+// afterwards), cancel() aborts it and stops watching. A bubbling "settled"
+// event with { status, discussions, errors } follows the final render. A
+// reader's data-saver setting (navigator.connection.saveData) skips the
+// automatic lookup; load() still works.
+const classes = new WeakMap();
 
-  const load = () => {
-    if (promise) return promise;
-    observer?.disconnect();
-    observer = null;
-    render(element, { status: "loading", discussions: [], errors: [] }, messages);
-    promise = discover(url, { ...options, signal: anySignal([controller.signal, options.signal]) })
-      .then(({ discussions, errors }) => {
-        if (controller.signal.aborted) return;
-        const status = discussions.length || !errors.length ? "done" : "error";
-        for (const { source, error } of errors) win.console?.warn?.(`discussed-elsewhere: ${source} failed:`, error);
-        render(element, { status, discussions, errors }, messages);
-        element.dispatchEvent(new win.CustomEvent("discussed-elsewhere", { bubbles: true, detail: { status, discussions, errors } }));
-      })
-      .catch((error) => {
-        if (controller.signal.aborted) return;
-        win.console?.warn?.("discussed-elsewhere: lookup failed:", error);
-        render(element, { status: "error", discussions: [], errors: [{ source: "*", error }] }, messages);
+export function elementClass(win = globalThis) {
+  if (classes.has(win)) return classes.get(win);
+  const Element = class DiscussedElsewhere extends win.HTMLElement {
+    #controller = null;
+    #observer = null;
+    #promise = null;
+    messages = null;
+    render = null;
+    options = null;
+
+    get url() {
+      return this.getAttribute("url") || this.ownerDocument.querySelector('link[rel~="canonical"]')?.href || win.location.href;
+    }
+
+    connectedCallback() {
+      queueMicrotask(() => {
+        if (!this.isConnected || this.#promise || this.#observer) return;
+        if (win.navigator?.connection?.saveData) return;
+        if (this.getAttribute("loading") === "lazy" && typeof win.IntersectionObserver === "function") {
+          this.#observer = new win.IntersectionObserver(
+            (entries) => {
+              if (entries.some((entry) => entry.isIntersecting)) this.load();
+            },
+            { rootMargin: this.getAttribute("root-margin") ?? "300px" },
+          );
+          this.#observer.observe(this);
+        } else {
+          this.load();
+        }
       });
-    return promise;
+    }
+
+    disconnectedCallback() {
+      this.#observer?.disconnect();
+      this.#observer = null;
+    }
+
+    load() {
+      if (this.#promise) return this.#promise;
+      this.#observer?.disconnect();
+      this.#observer = null;
+      const messages = { ...DEFAULT_MESSAGES, ...(this.messages || {}) };
+      for (const [key, attr] of [["loading", "loading-text"], ["empty", "empty-text"], ["error", "error-text"]])
+        if (this.hasAttribute(attr)) messages[key] = this.getAttribute(attr);
+      const render = this.render || renderList;
+      const options = { ...(this.options || {}) };
+      if (this.hasAttribute("sources")) options.sources = this.getAttribute("sources").split(",").map((s) => s.trim()).filter(Boolean);
+      if (this.hasAttribute("lemmy-instance")) options.lemmy = { ...(options.lemmy || {}), instance: this.getAttribute("lemmy-instance") };
+      if (this.hasAttribute("timeout")) options.timeout = Number(this.getAttribute("timeout"));
+      this.#controller = new AbortController();
+      options.signal = anySignal([this.#controller.signal, options.signal]);
+      const settle = (status, discussions, errors) => {
+        if (this.#controller.signal.aborted) return;
+        for (const { source, error } of errors) win.console?.warn?.(`discussed-elsewhere: ${source} failed:`, error);
+        render(this, { status, discussions, errors }, messages);
+        this.dispatchEvent(new win.CustomEvent("settled", { bubbles: true, detail: { status, discussions, errors } }));
+      };
+      render(this, { status: "loading", discussions: [], errors: [] }, messages);
+      this.#promise = discover(this.url, options)
+        .then(({ discussions, errors }) => settle(discussions.length || !errors.length ? "done" : "error", discussions, errors))
+        .catch((error) => settle("error", [], [{ source: "*", error }]));
+      return this.#promise;
+    }
+
+    cancel() {
+      this.#observer?.disconnect();
+      this.#observer = null;
+      this.#controller?.abort();
+    }
   };
-
-  const cancel = () => {
-    observer?.disconnect();
-    observer = null;
-    controller.abort();
-  };
-
-  const saveData = options.saveData ?? true;
-  if (saveData && win.navigator?.connection?.saveData) return { load, cancel, element, url };
-
-  if (typeof win.IntersectionObserver === "function") {
-    observer = new win.IntersectionObserver(
-      (entries) => {
-        if (entries.some((entry) => entry.isIntersecting)) load();
-      },
-      { rootMargin: options.rootMargin ?? "300px" },
-    );
-    observer.observe(element);
-  } else {
-    load();
-  }
-  return { load, cancel, element, url };
+  classes.set(win, Element);
+  return Element;
 }
+
+// Register the element under `name` (once per registry).
+export function define(name = "discussed-elsewhere", win = globalThis) {
+  if (win.customElements && !win.customElements.get(name)) win.customElements.define(name, elementClass(win));
+  return name;
+}
+
+// In a browser, importing the module registers <discussed-elsewhere>.
+if (typeof globalThis.HTMLElement === "function" && globalThis.customElements) define();

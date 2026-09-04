@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from "vitest";
 import { JSDOM } from "jsdom";
-import { connectSources, discover, mount, normalizeURL, cleanURL, renderList, sources } from "../src/discussed-elsewhere.js";
+import { connectSources, define, discover, normalizeURL, cleanURL, renderList, sources } from "../src/discussed-elsewhere.js";
 
 const ARTICLE = "https://Example.com/journal/post/?utm_source=x#top";
 const json = (body, status = 200) => ({ ok: status < 400, status, json: async () => body });
@@ -127,68 +127,88 @@ describe("discover", () => {
   });
 });
 
-describe("mount", () => {
-  const page = () => {
-    const dom = new JSDOM(`<!doctype html><link rel="canonical" href="https://example.com/journal/post/"><div id="box"></div>`, { url: "https://example.com/journal/post/?utm_source=x" });
+describe("<discussed-elsewhere>", () => {
+  const TAG = "discussed-elsewhere";
+  const page = (markup = `<${TAG} id="box"></${TAG}>`, win = {}) => {
+    const dom = new JSDOM(`<!doctype html><link rel="canonical" href="https://example.com/journal/post/">${markup}`, { url: "https://example.com/journal/post/?utm_source=x" });
+    Object.assign(dom.window, win);
+    define(TAG, dom.window);
     return { dom, box: dom.window.document.getElementById("box") };
   };
+  const settled = (box) => new Promise((ok) => box.addEventListener("settled", (e) => ok(e.detail), { once: true }));
+  const tick = () => new Promise((ok) => setTimeout(ok, 0));
 
-  it("takes the canonical address, defers to visibility, and renders a list", async () => {
-    const { dom, box } = page();
+  it("looks up on connection, from the canonical address, and renders a list", async () => {
+    const fetch = fakeFetch({ "hn.algolia.com": { hits: [{ objectID: "7", url: "https://example.com/journal/post/", num_comments: 1, points: 3 }] } });
+    const { box } = page(`<${TAG} id="box" sources="hn"></${TAG}>`);
+    expect(box.url).toBe("https://example.com/journal/post/");
+    box.options = { fetch }; // set right after definition: still in time
+    const detail = await settled(box);
+    expect(detail.status).toBe("done");
+    expect(box.innerHTML).toBe('<ul><li class="comment-line"><a href="https://news.ycombinator.com/item?id=7" rel="noopener"><span class="platform">Hacker News</span> (<span class="count">1 comment</span>)</a></li></ul>');
+    expect(fetch).toHaveBeenCalledTimes(1);
+    await box.load();
+    expect(fetch).toHaveBeenCalledTimes(1);
+  });
+
+  it("takes url, sources, texts and the Lemmy instance from attributes", async () => {
+    const fetch = fakeFetch({ "lemmy.example": { posts: [] } });
+    const { box } = page(`<${TAG} id="box" url="https://other.test/a/" sources="lemmy" lemmy-instance="lemmy.example" loading-text="wait" empty-text="nothing" error-text="broken"></${TAG}>`);
+    box.options = { fetch };
+    expect(box.textContent).toBe("");
+    await settled(box);
+    expect(box.innerHTML).toBe('<p class="empty">nothing</p>');
+    expect(new URL(fetch.mock.calls[0][0]).searchParams.get("q")).toBe("https://other.test/a/");
+  });
+
+  it('loading="lazy" waits for the element to near the viewport', async () => {
     const observed = [];
-    dom.window.IntersectionObserver = class {
+    const IntersectionObserver = class {
       constructor(cb, opts) {
-        this.cb = cb;
-        this.opts = opts;
+        Object.assign(this, { cb, opts });
         observed.push(this);
       }
-      observe(el) {
-        this.el = el;
-      }
+      observe() {}
       disconnect() {
         this.disconnected = true;
       }
     };
-    const fetch = fakeFetch({ "hn.algolia.com": { hits: [{ objectID: "7", url: "https://example.com/journal/post/", num_comments: 1, points: 3 }] } });
-    const controller = mount(box, { sources: ["hn"], fetch });
-    expect(controller.url).toBe("https://example.com/journal/post/");
-    expect(observed[0].opts).toEqual({ rootMargin: "300px" });
-    expect(box.innerHTML).toBe("");
-    const settled = new Promise((ok) => box.addEventListener("discussed-elsewhere", (e) => ok(e.detail)));
-    observed[0].cb([{ isIntersecting: true }]);
-    expect(box.querySelector("p.loading")).not.toBeNull();
-    const detail = await settled;
-    expect(detail.status).toBe("done");
-    expect(observed[0].disconnected).toBe(true);
-    expect(box.innerHTML).toBe('<ul><li class="comment-line"><a href="https://news.ycombinator.com/item?id=7" rel="noopener"><span class="platform">Hacker News</span> (<span class="count">1 comment</span>)</a></li></ul>');
-    expect(fetch).toHaveBeenCalledTimes(1);
-    await controller.load();
-    expect(fetch).toHaveBeenCalledTimes(1);
-  });
-
-  it("load() runs the lookup at once, and every source failing is an error", async () => {
-    const { box } = page();
-    const fetch = fakeFetch({});
-    const controller = mount(box, { fetch });
-    await controller.load();
-    expect(box.innerHTML).toBe('<p class="is-error">Could not look up discussions.</p>');
-  });
-
-  it("nothing found is the empty message, and cancel() stops a lookup", async () => {
-    const { box } = page();
     const fetch = fakeFetch({ "hn.algolia.com": { hits: [] } });
-    await mount(box, { sources: ["hn"], fetch }).load();
+    const { box } = page(`<${TAG} id="box" sources="hn" loading="lazy"></${TAG}>`, { IntersectionObserver });
+    box.options = { fetch };
+    await tick();
+    expect(fetch).not.toHaveBeenCalled();
+    expect(observed[0].opts).toEqual({ rootMargin: "300px" });
+    observed[0].cb([{ isIntersecting: true }]);
+    await settled(box);
+    expect(observed[0].disconnected).toBe(true);
     expect(box.innerHTML).toBe('<p class="empty">No discussions found.</p>');
+  });
+
+  it("every source failing is an error line; cancel() stops a lookup", async () => {
+    const { box } = page();
+    box.options = { fetch: fakeFetch({}) };
+    await settled(box);
+    expect(box.innerHTML).toBe('<p class="is-error">Could not look up discussions.</p>');
 
     const slow = vi.fn(() => new Promise(() => {}));
-    const { box: other } = page();
-    const controller = mount(other, { sources: ["hn"], fetch: slow, messages: { loading: "wait" } });
-    const pending = controller.load();
+    const { box: other } = page(`<${TAG} id="box" sources="hn" loading-text="wait"></${TAG}>`);
+    other.options = { fetch: slow };
+    await tick();
     expect(other.textContent).toBe("wait");
-    controller.cancel();
+    other.cancel();
     expect(slow.mock.calls[0][1].signal.aborted).toBe(true);
-    await Promise.race([pending, new Promise((ok) => setTimeout(ok, 20))]);
-    expect(other.textContent).toBe("wait");
+  });
+
+  it("respects the reader's data-saver setting until load() is called", async () => {
+    const fetch = fakeFetch({ "hn.algolia.com": { hits: [] } });
+    const { dom, box } = page(`<${TAG} id="box" sources="hn"></${TAG}>`);
+    Object.defineProperty(dom.window.navigator, "connection", { value: { saveData: true }, configurable: true });
+    box.options = { fetch };
+    await tick();
+    expect(fetch).not.toHaveBeenCalled();
+    await box.load();
+    expect(fetch).toHaveBeenCalledTimes(1);
   });
 
   it("renderList escapes what the sources return", () => {
