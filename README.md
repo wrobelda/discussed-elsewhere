@@ -31,10 +31,10 @@ power for static blogs; that service died in 2025.
 <discussed-elsewhere url="https://example.com/post/"></discussed-elsewhere>
 ```
 
-From npm, a bundled entry does the same with `import "discussed-elsewhere";`.
-Importing the module registers the element. The element looks the article
-up as soon as it is on the page, like an `<img>` does, and renders a list
-into its own light DOM, so your stylesheet styles it:
+Loading the module registers the `<discussed-elsewhere>` element; a bundle
+built from npm does the same with `import "discussed-elsewhere";`. The
+element looks the article up as soon as it is on the page and renders a
+list into its own light DOM, so your stylesheet styles it:
 
 ```html
 <ul>
@@ -92,20 +92,36 @@ waits one microtask before it starts.
 A reader's data-saver setting skips the automatic lookup; `load()` still
 works.
 
-To register the element under another tag name as well, call
+To register `<discussed-elsewhere>` under another tag name as well, call
 `define("my-discussions")`.
 
-### Without the DOM
+### Using `discover()` lookup function on its own
 
-`discover(url, options)` returns `{ discussions, errors }`. Each discussion
-is `{ source, label, url, title, comments, score, date, posts }`, and the
-list is sorted by comment count, then score. The options are:
+The `<discussed-elsewhere>` element is a thin layer over `discover()`, which runs the lookup and
+returns the data. Use it where there is no page: a Node script, a build
+step, a test.
 
-- `sources`: source ids or source objects;
+```js
+import { discover } from "discussed-elsewhere";
+
+const { discussions, errors } = await discover("https://example.com/post/");
+for (const d of discussions) console.log(`${d.label}: ${d.comments} comments, ${d.url}`);
+```
+
+Each discussion is `{ source, label, url, title, comments, score, date,
+posts }`; `posts` is the number of submissions folded into the entry, which
+matters for Bluesky. The list is sorted by comment count, then score. Each
+error is `{ source, error }` for a source that failed.
+
+Options:
+
+- `sources`: source ids, or your own `{ id, label, hosts, lookup }` objects;
 - `lemmy.instance`: the Lemmy instance;
 - `bluesky.minEngagement`: ignore Bluesky posts with fewer replies, likes,
   reposts and quotes than this; the default is 1;
-- `timeout`, `signal`, `fetch`.
+- `timeout`: per request, in ms; the default is 5000;
+- `signal`: an AbortSignal;
+- `fetch`: a replacement for `globalThis.fetch`, for tests.
 
 ### Content-Security-Policy
 
