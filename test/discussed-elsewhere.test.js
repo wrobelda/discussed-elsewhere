@@ -97,7 +97,7 @@ describe("sources", () => {
       },
     });
     const { discussions } = await discover(ARTICLE, { sources: ["lemmy"], lemmy: { instance: "https://lemmy.example/" }, fetch });
-    expect(discussions).toEqual([expect.objectContaining({ label: "Lemmy !linux@lemmy.other", url: "https://lemmy.other/post/9", comments: 7 })]);
+    expect(discussions).toEqual([expect.objectContaining({ label: "Lemmy (linux on lemmy.other)", url: "https://lemmy.other/post/9", comments: 7 })]);
     expect(new URL(fetch.mock.calls[0][0]).host).toBe("lemmy.example");
   });
 });

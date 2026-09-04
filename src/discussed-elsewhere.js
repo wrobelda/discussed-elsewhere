@@ -203,7 +203,7 @@ export const sources = {
           } catch {}
           return discussion({
             source: "lemmy",
-            label: `Lemmy !${view.community?.name || "?"}@${home}`,
+            label: `Lemmy (${view.community?.name || "?"} on ${home})`,
             url: view.post.ap_id || `https://${instance}/post/${view.post.id}`,
             title: view.post.name || "",
             comments: view.counts?.comments || 0,
