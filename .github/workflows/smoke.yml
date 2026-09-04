@@ -1,0 +1,21 @@
+# Live lookup against the real endpoints, weekly and on demand. The sources
+# are third parties that die silently, so a failing run here is the signal
+# that one of them changed or went away.
+name: Smoke
+on:
+  schedule:
+    - cron: "23 6 * * 1" # Mondays 06:23 UTC
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  smoke:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci --no-audit --no-fund
+      - run: npm run smoke

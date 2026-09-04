@@ -1,0 +1,29 @@
+# Publish to npm when a version tag is pushed, through npm's trusted
+# publishing: the job presents a short-lived OIDC token, so no npm token is
+# stored, and the package gets provenance. One-time setup on npmjs.com after
+# the first, manual publish: package settings, Trusted Publisher, GitHub
+# Actions, this repository and workflow file name.
+name: Release
+on:
+  push:
+    tags: ["v*"]
+permissions:
+  contents: read
+  id-token: write
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          registry-url: https://registry.npmjs.org
+          cache: npm
+      - run: npm ci --no-audit --no-fund
+      - run: npm test
+      - name: Tag matches package.json
+        run: |
+          version=$(node -p "require('./package.json').version")
+          [ "${GITHUB_REF_NAME}" = "v${version}" ] || { echo "tag ${GITHUB_REF_NAME} but package.json says ${version}"; exit 1; }
+      - run: npm publish --provenance --access public

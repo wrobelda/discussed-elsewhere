@@ -1,5 +1,9 @@
 # discussed-elsewhere
 
+[![Test](https://github.com/wrobelda/discussed-elsewhere/actions/workflows/test.yml/badge.svg)](https://github.com/wrobelda/discussed-elsewhere/actions/workflows/test.yml)
+[![Smoke](https://github.com/wrobelda/discussed-elsewhere/actions/workflows/smoke.yml/badge.svg)](https://github.com/wrobelda/discussed-elsewhere/actions/workflows/smoke.yml)
+[![npm](https://img.shields.io/npm/v/discussed-elsewhere)](https://www.npmjs.com/package/discussed-elsewhere)
+
 A browser module that finds where an article is being discussed and lists
 the threads under it, with the comment count of each thread. It covers
 Hacker News, Reddit, Bluesky and Lemmy.
