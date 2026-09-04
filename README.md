@@ -45,6 +45,7 @@ identifiers, no telemetry.
 <discussed-elsewhere url="https://example.com/post/"></discussed-elsewhere>
 ```
 
+From npm, a bundled entry does the same with `import "discussed-elsewhere";`.
 Importing the module registers the element. The element looks the article
 up as soon as it is on the page, like an `<img>` does, and renders a list
 into its own light DOM, so your stylesheet styles it:
@@ -56,7 +57,8 @@ into its own light DOM, so your stylesheet styles it:
 </ul>
 ```
 
-The element shows one of three status lines before the list:
+Before the list, or instead of it, the element shows one of three status
+lines:
 
 - `<p class="loading">` while the lookup runs;
 - `<p class="empty">` when nothing was found;
@@ -77,7 +79,7 @@ All attributes are optional.
 | `root-margin` | `300px` | the distance for `loading="lazy"` |
 | `lemmy-instance` | `lemmy.world` | the Lemmy instance to ask |
 | `timeout` | `5000` | the per-request timeout in ms |
-| `loading-text`, `empty-text`, `error-text` | English | the three status lines |
+| `loading-text`, `empty-text`, `error-text` | "Looking up discussions…", "No discussions found.", "Could not look up discussions." | the three status lines |
 
 ### Properties
 
@@ -93,17 +95,19 @@ waits one microtask before it starts.
 
 ### Methods and events
 
-- `load()` runs the lookup now, once; later calls return the same promise.
+- `load()` runs the lookup now, once, and resolves to the settled
+  `{ status, discussions, errors }`; later calls return the same promise.
   This is what a screenshot test wants.
-- `cancel()` aborts the lookup and stops watching the viewport.
+- `cancel()` aborts the lookup and stops watching the viewport; a later
+  `load()` starts afresh.
 - A bubbling `settled` event with `{ status, discussions, errors }` follows
   the final render.
 
 A reader's data-saver setting skips the automatic lookup; `load()` still
 works.
 
-To use another tag name, call `define("my-discussions")` before the default
-registration runs, that is from a module that imports this one.
+To register the element under another tag name as well, call
+`define("my-discussions")`.
 
 ### Without the DOM
 
