@@ -334,11 +334,13 @@ export function mount(element, options = {}) {
       .then(({ discussions, errors }) => {
         if (controller.signal.aborted) return;
         const status = discussions.length || !errors.length ? "done" : "error";
+        for (const { source, error } of errors) win.console?.warn?.(`discussed-elsewhere: ${source} failed:`, error);
         render(element, { status, discussions, errors }, messages);
         element.dispatchEvent(new win.CustomEvent("discussed-elsewhere", { bubbles: true, detail: { status, discussions, errors } }));
       })
       .catch((error) => {
         if (controller.signal.aborted) return;
+        win.console?.warn?.("discussed-elsewhere: lookup failed:", error);
         render(element, { status: "error", discussions: [], errors: [{ source: "*", error }] }, messages);
       });
     return promise;
