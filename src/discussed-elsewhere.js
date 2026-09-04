@@ -221,12 +221,19 @@ export const sources = {
 
 export const DEFAULT_SOURCES = ["hn", "reddit", "bluesky", "lemmy"];
 
+// A signal that aborts when any of the given ones does; a hand-made
+// AbortSignal.any() where the browser lacks it (before 2024).
 const anySignal = (signals) => {
   const list = signals.filter(Boolean);
   if (!list.length) return undefined;
   if (list.length === 1) return list[0];
   if (typeof AbortSignal.any === "function") return AbortSignal.any(list);
-  return list[0];
+  const controller = new AbortController();
+  for (const signal of list) {
+    if (signal.aborted) controller.abort(signal.reason);
+    else signal.addEventListener("abort", () => controller.abort(signal.reason), { once: true });
+  }
+  return controller.signal;
 };
 
 // Look the URL up on every source and gather the results. Options:
