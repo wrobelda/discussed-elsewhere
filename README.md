@@ -14,28 +14,14 @@ power for static blogs; that service died in 2025.
 
 ## Sources
 
-| Source | Endpoint the browser contacts | What the endpoint is told |
-| --- | --- | --- |
-| Hacker News | `hn.algolia.com`, the official search API | the article URL |
-| Reddit | `arctic-shift.photon-reddit.com`, a public archive mirror | the article URL |
-| Bluesky | `constellation.microcosm.blue`, an independent backlink index, then `public.api.bsky.app` | Constellation gets the URL; Bluesky gets post ids only |
-| Lemmy | one instance, `lemmy.world` by default | the article URL |
-
-Reddit goes through the archive because reddit.com refuses unauthenticated
-JSON since 2026 and its own API is OAuth-only.
-
-Two sources cannot be reached from a browser directly:
-
-- Lobsters: its URL lookup sends no CORS headers.
-- Mastodon: it has no URL search without a token.
-
-Both reach a site through webmentions instead. Lobsters sends a webmention
-for every submission, while Bridgy backfeeds Mastodon and Bluesky replies.
-A `webmention` source that reads webmention.io is the next item in
-`TODO.md`.
-
-The module sends nothing else: no cookies (`credentials: "omit"`), no
-identifiers, no telemetry.
+| Source | Endpoint | Receives | Remarks |
+| --- | --- | --- | --- |
+| Hacker News | `hn.algolia.com`, the official search API | the article URL | |
+| Reddit | `arctic-shift.photon-reddit.com`, a public archive mirror | the article URL | reddit.com refuses unauthenticated JSON since 2026, and its own API is OAuth-only, so the archive stands in |
+| Bluesky | `constellation.microcosm.blue`, an independent backlink index, then `public.api.bsky.app` | Constellation gets the URL; Bluesky gets post ids only | |
+| Lemmy | one instance, `lemmy.world` by default | the article URL | |
+| Lobsters (via webmention.io) | `webmention.io`, planned, see `TODO.md` | the article URL | Lobsters' URL lookup sends no CORS headers, but Lobsters sends a webmention to the article for every submission |
+| Mastodon (via webmention.io) | `webmention.io`, planned, see `TODO.md` | the article URL | Mastodon has no URL search without a token, but Bridgy forwards the replies as webmentions |
 
 ## Use
 
