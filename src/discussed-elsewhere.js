@@ -264,7 +264,8 @@ export async function discover(url, options = {}) {
   const discussions = [];
   const errors = [];
   settled.forEach((result, i) => {
-    if (result.status === "fulfilled") discussions.push(...result.value);
+    // only http(s) addresses may become links, whatever an endpoint returns
+    if (result.status === "fulfilled") discussions.push(...result.value.filter((d) => normalizeURL(d?.url)));
     else errors.push({ source: chosen[i].id, error: result.reason });
   });
   discussions.sort((a, b) => b.comments - a.comments || b.score - a.score || String(a.label).localeCompare(String(b.label)));
@@ -309,7 +310,7 @@ export function renderList(element, state, messages = DEFAULT_MESSAGES) {
     const item = doc.createElement("li");
     item.className = "comment-line";
     const link = doc.createElement("a");
-    link.href = d.url;
+    if (normalizeURL(d.url)) link.href = d.url;
     link.rel = "noopener";
     link.append(text("span", "platform", d.label), " (", text("span", "count", messages.comments(d.comments)), ")");
     item.append(link);

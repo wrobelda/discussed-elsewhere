@@ -111,6 +111,12 @@ describe("discover", () => {
     expect(fetch).not.toHaveBeenCalled();
   });
 
+  it("drops discussions whose address is not a web URL", async () => {
+    const source = { id: "odd", label: "Odd", hosts: [], lookup: async () => [{ source: "odd", label: "Odd", url: "javascript:alert(1)", comments: 9, score: 0 }, { source: "odd", label: "Odd", url: "https://ok.test/t", comments: 1, score: 0 }] };
+    const { discussions } = await discover(ARTICLE, { sources: [source], fetch: fakeFetch({}) });
+    expect(discussions.map((d) => d.url)).toEqual(["https://ok.test/t"]);
+  });
+
   it("sorts by comments then score and reports failed sources", async () => {
     const fetch = fakeFetch({
       "hn.algolia.com": { hits: [{ objectID: "1", url: "https://example.com/journal/post", num_comments: 2, points: 1 }, { objectID: "2", url: "https://example.com/journal/post/", num_comments: 2, points: 8 }] },
@@ -265,5 +271,7 @@ describe("<discussed-elsewhere>", () => {
     expect(box.querySelector(".platform").textContent).toBe("<b>x</b>");
     expect(box.querySelector("b")).toBeNull();
     expect(box.querySelector("a").getAttribute("href")).toBe("https://a.test/?q=<s>");
+    renderList(box, { status: "done", discussions: [{ label: "x", url: "javascript:alert(1)", comments: 0 }] }, { comments: (n) => `${n}` });
+    expect(box.querySelector("a").hasAttribute("href")).toBe(false);
   });
 });
