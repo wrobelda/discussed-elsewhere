@@ -24,8 +24,9 @@ describe("normalizeURL", () => {
     expect(normalizeURL("not a url")).toBe("");
     expect(normalizeURL("mailto:me@example.com")).toBe("");
   });
-  it("cleanURL keeps the address as submitted elsewhere", () => {
+  it("cleanURL keeps the address as submitted elsewhere, and rejects other schemes", () => {
     expect(cleanURL(ARTICLE)).toBe("https://example.com/journal/post/");
+    expect(cleanURL("mailto:me@example.com")).toBe("");
   });
 });
 
@@ -103,6 +104,13 @@ describe("sources", () => {
 });
 
 describe("discover", () => {
+  it("asks nothing about an address that is not a web URL", async () => {
+    const fetch = fakeFetch({ "hn.algolia.com": { hits: [{ objectID: "1", url: null, title: "Ask HN", num_comments: 3 }] } });
+    expect(await discover("not a url", { fetch })).toEqual({ discussions: [], errors: [] });
+    expect(await discover("mailto:me@example.com", { fetch })).toEqual({ discussions: [], errors: [] });
+    expect(fetch).not.toHaveBeenCalled();
+  });
+
   it("sorts by comments then score and reports failed sources", async () => {
     const fetch = fakeFetch({
       "hn.algolia.com": { hits: [{ objectID: "1", url: "https://example.com/journal/post", num_comments: 2, points: 1 }, { objectID: "2", url: "https://example.com/journal/post/", num_comments: 2, points: 8 }] },

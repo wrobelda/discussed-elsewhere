@@ -56,6 +56,7 @@ export function cleanURL(url) {
   } catch {
     return "";
   }
+  if (u.protocol !== "http:" && u.protocol !== "https:") return "";
   for (const key of [...u.searchParams.keys()]) if (isTrackingParam(key)) u.searchParams.delete(key);
   u.hash = "";
   return u.href;
@@ -239,6 +240,9 @@ const anySignal = (signals) => {
 // count, then score; the errors are { source, error } for each source that
 // failed.
 export async function discover(url, options = {}) {
+  // not a web address: nothing to ask, and no source could match it (a text
+  // post with no URL normalizes to "" as well)
+  if (!normalizeURL(url)) return { discussions: [], errors: [] };
   const fetcher = options.fetch || globalThis.fetch.bind(globalThis);
   const timeout = options.timeout ?? 5000;
   const ctx = {
