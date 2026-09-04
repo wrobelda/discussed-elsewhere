@@ -397,6 +397,8 @@ export function elementClass(win = globalThis) {
       });
     }
 
+    // Leaving the page stops the watching only: a lookup in flight runs on,
+    // so an element moved and re-inserted keeps its result. cancel() aborts.
     disconnectedCallback() {
       this.#observer?.disconnect();
       this.#observer = null;
@@ -449,8 +451,13 @@ export function elementClass(win = globalThis) {
 // one name per constructor, so a second name gets a subclass.
 export function define(name = "discussed-elsewhere", win = globalThis) {
   const registry = win.customElements;
-  if (!registry || registry.get(name)) return name;
+  if (!registry) return name;
   const Base = elementClass(win);
+  const existing = registry.get(name);
+  if (existing) {
+    if (existing !== Base && !(existing.prototype instanceof Base)) win.console?.warn?.(`discussed-elsewhere: <${name}> is already another element`);
+    return name;
+  }
   const taken = registry.getName ? registry.getName(Base) !== null : registered.has(Base);
   registry.define(name, taken ? class extends Base {} : Base);
   registered.add(Base);

@@ -272,8 +272,13 @@ describe("<discussed-elsewhere>", () => {
     expect(events).toBe(1);
   });
 
-  it("define() registers a second tag name in the same window", async () => {
+  it("define() registers a second tag name in the same window, and warns about a taken one", async () => {
     const { dom } = page();
+    dom.window.customElements.define("some-thing", class extends dom.window.HTMLElement {});
+    const warn = vi.spyOn(dom.window.console, "warn").mockImplementation(() => {});
+    define("some-thing", dom.window);
+    expect(warn).toHaveBeenCalledTimes(1);
+    warn.mockRestore();
     expect(() => define("my-discussions", dom.window)).not.toThrow();
     const el = dom.window.document.createElement("my-discussions");
     el.options = { fetch: fakeFetch({ "hn.algolia.com": { hits: [] } }) };
