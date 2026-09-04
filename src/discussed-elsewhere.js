@@ -1,20 +1,23 @@
 // discussed-elsewhere: find where an article is being discussed and list the
-// threads. Browser-only, dependency-free, keyless: every source below answers
-// cross-origin JSON to an unauthenticated fetch, so the script runs under a
-// strict Content-Security-Policy with connect-src limited to these hosts:
+// threads. The module is browser-only, dependency-free and keyless, because
+// every source answers cross-origin JSON to an unauthenticated fetch. So it
+// runs under a strict Content-Security-Policy whose connect-src lists only
+// these hosts:
 //
 //   hn        https://hn.algolia.com
-//   reddit    https://arctic-shift.photon-reddit.com   (archive mirror;
-//             reddit.com itself refuses unauthenticated JSON since 2026)
-//   bluesky   https://constellation.microcosm.blue     (backlink index) and
-//             https://public.api.bsky.app              (post counts)
-//   lemmy     https://<instance>                       (lemmy.world by default)
+//   reddit    https://arctic-shift.photon-reddit.com, an archive mirror;
+//             reddit.com itself refuses unauthenticated JSON since 2026
+//   bluesky   https://constellation.microcosm.blue, a backlink index, and
+//             https://public.api.bsky.app for the post counts
+//   lemmy     https://<instance>, lemmy.world by default
 //
-// Lobsters has a URL lookup (/stories/url/all) but sends no CORS headers, so
-// it cannot be a browser source; Mastodon has no URL search at all.
+// Lobsters has a URL lookup at /stories/url/all, but it sends no CORS
+// headers, so it cannot be a browser source. Mastodon has no URL search at
+// all. Both arrive through webmentions instead; see TODO.md.
 //
-// The endpoint map follows Backchannel (github.com/twalichiewicz/Backchannel,
-// MIT), a userscript that does the same lookup with extension privileges.
+// The endpoint map follows Backchannel, a userscript that does the same
+// lookup with extension privileges: github.com/twalichiewicz/Backchannel,
+// MIT.
 
 const TRACKING_PARAMS = new Set([
   "fbclid", "gclid", "dclid", "msclkid", "twclid", "igshid", "mc_cid", "mc_eid",
@@ -225,12 +228,16 @@ const anySignal = (signals) => {
   return list[0];
 };
 
-// Look the URL up on every source and gather the results.
-// options: sources (ids or source objects), timeout (ms per request, 5000),
-// signal, fetch (defaults to globalThis.fetch), lemmy: { instance },
-// bluesky: { minEngagement }.
-// Returns { discussions, errors }: discussions sorted by comment count then
-// score, errors as { source, error } for each source that failed.
+// Look the URL up on every source and gather the results. Options:
+//   sources               source ids or source objects
+//   timeout               per request, in ms; 5000 by default
+//   signal                an AbortSignal
+//   fetch                 defaults to globalThis.fetch
+//   lemmy.instance        the Lemmy instance to ask
+//   bluesky.minEngagement the least engagement a Bluesky post needs
+// Returns { discussions, errors }. The discussions are sorted by comment
+// count, then score; the errors are { source, error } for each source that
+// failed.
 export async function discover(url, options = {}) {
   const fetcher = options.fetch || globalThis.fetch.bind(globalThis);
   const timeout = options.timeout ?? 5000;
@@ -307,21 +314,37 @@ export function renderList(element, state, messages = DEFAULT_MESSAGES) {
   element.append(list);
 }
 
-// <discussed-elsewhere url="…"> — the box as a custom element, rendered into
-// its own light DOM so the page's stylesheet styles the list. Like an <img>
-// it looks the article up as soon as it is connected, or, with
-// loading="lazy", once it comes within `root-margin` (300px) of the viewport.
-// Attributes: url (defaults to <link rel=canonical>, then the page address),
-// sources (comma-separated ids), loading ("eager" | "lazy"), root-margin,
-// lemmy-instance, timeout (ms), loading-text / empty-text / error-text.
-// Properties, for what attributes cannot carry: messages (see
-// DEFAULT_MESSAGES), render(element, state, messages), options (extra
-// discover() options, e.g. a custom fetch); a script that sets them right
-// after the element is parsed or defined still wins, the first lookup waits
-// a microtask. Methods: load() runs the lookup now (once; the same promise
-// afterwards), cancel() aborts it and stops watching. A bubbling "settled"
-// event with { status, discussions, errors } follows the final render. A
-// reader's data-saver setting (navigator.connection.saveData) skips the
+// <discussed-elsewhere url="…">: the box as a custom element. It renders
+// into its own light DOM, so the page's stylesheet styles the list. Like an
+// <img> it looks the article up as soon as it is connected; with
+// loading="lazy" it waits until it comes within root-margin of the viewport.
+//
+// Attributes:
+//   url            the article; defaults to <link rel=canonical>, then the
+//                  page address
+//   sources        comma-separated source ids
+//   loading        "eager" (default) or "lazy"
+//   root-margin    the distance for loading="lazy"; "300px" by default
+//   lemmy-instance the Lemmy instance to ask
+//   timeout        per request, in ms
+//   loading-text, empty-text, error-text
+//                  the three status lines
+//
+// Properties, for what attributes cannot carry:
+//   messages       see DEFAULT_MESSAGES
+//   render         render(element, state, messages)
+//   options        extra discover() options, such as a custom fetch
+// A script may set them right after the element is parsed or defined,
+// because the first lookup waits one microtask.
+//
+// Methods and events:
+//   load()         runs the lookup now, once; later calls return the same
+//                  promise
+//   cancel()       aborts the lookup and stops watching the viewport
+//   "settled"      a bubbling event with { status, discussions, errors },
+//                  dispatched after the final render
+//
+// A reader's data-saver setting (navigator.connection.saveData) skips the
 // automatic lookup; load() still works.
 const classes = new WeakMap();
 
