@@ -40,4 +40,7 @@ jobs:
       - name: GitHub Release
         env:
           GH_TOKEN: ${{ github.token }}
-        run: gh release create "${GITHUB_REF_NAME}" --title "${GITHUB_REF_NAME}" --notes "discussed-elsewhere ${GITHUB_REF_NAME#v} on npm: https://www.npmjs.com/package/discussed-elsewhere/v/${GITHUB_REF_NAME#v}" --verify-tag
+        run: |
+          version="${GITHUB_REF_NAME#v}"
+          gh release create "${GITHUB_REF_NAME}" --verify-tag --title "${GITHUB_REF_NAME}" \
+            --notes "discussed-elsewhere ${version} on npm: https://www.npmjs.com/package/discussed-elsewhere/v/${version}"
