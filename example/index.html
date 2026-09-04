@@ -1,0 +1,18 @@
+<!doctype html>
+<meta charset="utf-8">
+<title>discussed-elsewhere example</title>
+<style>
+  body { font: 16px/1.5 system-ui, sans-serif; max-width: 40rem; margin: 3rem auto; padding: 0 1rem; }
+  .spacer { height: 150vh; border-left: 2px dashed #ccc; padding-left: 1rem; color: #888; }
+  .loading, .empty, .is-error { color: #888; }
+</style>
+<h1>discussed-elsewhere</h1>
+<p>Scroll down: the box looks the article up once it comes within 300px of the viewport.</p>
+<div class="spacer">(article body)</div>
+<h2>Discussions around the web</h2>
+<div id="discussions" data-url="https://dawidwrobel.com/journal/initializing-lte-modem-using-raw-usb-communication/"></div>
+<script type="module">
+  import { mount } from "../src/discussed-elsewhere.js";
+  globalThis.discussions = mount(document.getElementById("discussions"));
+  document.addEventListener("discussed-elsewhere", (e) => console.log("settled", e.detail));
+</script>

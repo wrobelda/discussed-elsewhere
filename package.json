@@ -1,0 +1,20 @@
+{
+  "name": "discussed-elsewhere",
+  "version": "0.1.0",
+  "description": "Find where an article is being discussed (Hacker News, Reddit, Bluesky, Lemmy) and list the threads: a dependency-free, keyless browser module for static sites",
+  "type": "module",
+  "main": "src/discussed-elsewhere.js",
+  "exports": "./src/discussed-elsewhere.js",
+  "files": ["src", "README.md", "LICENSE", "THIRD-PARTY.md"],
+  "scripts": {
+    "test": "vitest run",
+    "smoke": "node example/smoke.mjs"
+  },
+  "keywords": ["hacker-news", "reddit", "bluesky", "lemmy", "comments", "discussions", "static-site", "hugo"],
+  "author": "Dawid Wróbel",
+  "license": "MIT",
+  "devDependencies": {
+    "jsdom": "^26.1.0",
+    "vitest": "^3.2.0"
+  }
+}
