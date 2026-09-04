@@ -219,6 +219,31 @@ describe("<discussed-elsewhere>", () => {
     expect(fetch).toHaveBeenCalledTimes(1);
   });
 
+  it("load() resolves to the settled state, and cancel() lets a later load() start afresh", async () => {
+    const { box } = page(`<${TAG} id="box" sources="hn"></${TAG}>`);
+    const slow = vi.fn(() => new Promise(() => {}));
+    box.options = { fetch: slow };
+    box.load();
+    box.cancel();
+    const fetch = fakeFetch({ "hn.algolia.com": { hits: [] } });
+    box.options = { fetch };
+    const detail = await box.load();
+    expect(detail).toEqual({ status: "done", discussions: [], errors: [] });
+    expect(fetch).toHaveBeenCalledTimes(1);
+  });
+
+  it("define() registers a second tag name in the same window", async () => {
+    const { dom } = page();
+    expect(() => define("my-discussions", dom.window)).not.toThrow();
+    const el = dom.window.document.createElement("my-discussions");
+    el.options = { fetch: fakeFetch({ "hn.algolia.com": { hits: [] } }) };
+    el.setAttribute("sources", "hn");
+    dom.window.document.body.append(el);
+    const detail = await el.load();
+    expect(detail.status).toBe("done");
+    expect(el.innerHTML).toBe('<p class="empty">No discussions found.</p>');
+  });
+
   it("renderList escapes what the sources return", () => {
     const { box } = page();
     renderList(box, { status: "done", discussions: [{ label: "<b>x</b>", url: "https://a.test/?q=<s>", comments: 2 }] }, { comments: (n) => `${n} c` });

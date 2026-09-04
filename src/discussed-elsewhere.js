@@ -342,9 +342,11 @@ export function renderList(element, state, messages = DEFAULT_MESSAGES) {
 // because the first lookup waits one microtask.
 //
 // Methods and events:
-//   load()         runs the lookup now, once; later calls return the same
-//                  promise
-//   cancel()       aborts the lookup and stops watching the viewport
+//   load()         runs the lookup now, once, and resolves to the settled
+//                  { status, discussions, errors }; later calls return the
+//                  same promise
+//   cancel()       aborts the lookup and stops watching the viewport; a
+//                  later load() starts afresh
 //   "settled"      a bubbling event with { status, discussions, errors },
 //                  dispatched after the final render
 //
@@ -363,7 +365,7 @@ export function elementClass(win = globalThis) {
     options = null;
 
     get url() {
-      return this.getAttribute("url") || this.ownerDocument.querySelector('link[rel~="canonical"]')?.href || win.location.href;
+      return this.getAttribute("url") || this.ownerDocument.querySelector('link[rel~="canonical"]')?.href || this.ownerDocument.location?.href || win.location?.href || "";
     }
 
     connectedCallback() {
@@ -404,10 +406,12 @@ export function elementClass(win = globalThis) {
       this.#controller = new AbortController();
       options.signal = anySignal([this.#controller.signal, options.signal]);
       const settle = (status, discussions, errors) => {
-        if (this.#controller.signal.aborted) return;
+        const detail = { status, discussions, errors };
+        if (this.#controller.signal.aborted) return detail;
         for (const { source, error } of errors) win.console?.warn?.(`discussed-elsewhere: ${source} failed:`, error);
-        render(this, { status, discussions, errors }, messages);
-        this.dispatchEvent(new win.CustomEvent("settled", { bubbles: true, detail: { status, discussions, errors } }));
+        render(this, detail, messages);
+        this.dispatchEvent(new win.CustomEvent("settled", { bubbles: true, detail }));
+        return detail;
       };
       render(this, { status: "loading", discussions: [], errors: [] }, messages);
       this.#promise = discover(this.url, options)
@@ -420,17 +424,25 @@ export function elementClass(win = globalThis) {
       this.#observer?.disconnect();
       this.#observer = null;
       this.#controller?.abort();
+      this.#promise = null; // a later load() starts afresh
     }
   };
   classes.set(win, Element);
   return Element;
 }
 
-// Register the element under `name` (once per registry).
+// Register the element under `name`, once per registry. A registry accepts
+// one name per constructor, so a second name gets a subclass.
 export function define(name = "discussed-elsewhere", win = globalThis) {
-  if (win.customElements && !win.customElements.get(name)) win.customElements.define(name, elementClass(win));
+  const registry = win.customElements;
+  if (!registry || registry.get(name)) return name;
+  const Base = elementClass(win);
+  const taken = registry.getName ? registry.getName(Base) !== null : registered.has(Base);
+  registry.define(name, taken ? class extends Base {} : Base);
+  registered.add(Base);
   return name;
 }
+const registered = new WeakSet();
 
 // In a browser, importing the module registers <discussed-elsewhere>.
 if (typeof globalThis.HTMLElement === "function" && globalThis.customElements) define();
