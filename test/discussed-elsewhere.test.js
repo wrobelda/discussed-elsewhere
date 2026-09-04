@@ -111,6 +111,13 @@ describe("discover", () => {
     expect(fetch).not.toHaveBeenCalled();
   });
 
+  it("a source that throws synchronously is reported, not thrown", async () => {
+    const source = { id: "bad", label: "Bad", hosts: [], lookup: () => { throw new Error("boom"); } };
+    const { discussions, errors } = await discover(ARTICLE, { sources: [source], fetch: fakeFetch({}) });
+    expect(discussions).toEqual([]);
+    expect(errors).toEqual([{ source: "bad", error: expect.any(Error) }]);
+  });
+
   it("drops discussions whose address is not a web URL", async () => {
     const source = { id: "odd", label: "Odd", hosts: [], lookup: async () => [{ source: "odd", label: "Odd", url: "javascript:alert(1)", comments: 9, score: 0 }, { source: "odd", label: "Odd", url: "https://ok.test/t", comments: 1, score: 0 }] };
     const { discussions } = await discover(ARTICLE, { sources: [source], fetch: fakeFetch({}) });

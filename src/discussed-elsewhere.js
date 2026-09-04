@@ -267,7 +267,8 @@ export async function discover(url, options = {}) {
     },
   };
   const chosen = (options.sources || DEFAULT_SOURCES).map((s) => (typeof s === "string" ? sources[s] : s)).filter(Boolean);
-  const settled = await Promise.allSettled(chosen.map((source) => source.lookup(url, ctx, options)));
+  // async wrapper: a source that throws synchronously still lands in errors
+  const settled = await Promise.allSettled(chosen.map(async (source) => source.lookup(url, ctx, options)));
   const discussions = [];
   const errors = [];
   settled.forEach((result, i) => {
