@@ -81,9 +81,11 @@ export const sources = {
     async lookup(url, ctx) {
       const target = normalizeURL(url);
       // Algolia matches URL tokens, not the exact string: a query for the home
-      // page returns every story from the domain, hence the exact filter.
+      // page returns every story from the domain, hence the exact filter. The
+      // page holds 50 hits, so a domain with more stories sharing the tokens
+      // could still push a real match off it; accepted.
       const res = await ctx.json(
-        "https://hn.algolia.com/api/v1/search?tags=story&restrictSearchableAttributes=url&hitsPerPage=20&query=" +
+        "https://hn.algolia.com/api/v1/search?tags=story&restrictSearchableAttributes=url&hitsPerPage=50&query=" +
           encodeURIComponent(cleanURL(url)),
       );
       return (res?.hits || [])
