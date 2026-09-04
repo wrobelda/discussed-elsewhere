@@ -19,9 +19,12 @@ for static blogs; that service died in 2025.
 | Bluesky | `constellation.microcosm.blue` (an independent backlink index), then `public.api.bsky.app` | Constellation gets the URL; Bluesky only post ids |
 | Lemmy | one instance, `lemmy.world` by default | the article URL |
 
-Not possible from a browser, and therefore not included: Lobsters (its URL
-lookup sends no CORS headers), Mastodon (no URL search without a token),
-Reddit's own API (OAuth only).
+Not reachable directly from a browser: Lobsters (its URL lookup sends no
+CORS headers) and Mastodon (no URL search without a token). Both reach a
+site through webmentions instead: Lobsters sends one for every submission,
+and Bridgy backfeeds Mastodon and Bluesky replies; a `webmention` source
+reading webmention.io is the next item in `TODO.md`. Reddit's own API is
+OAuth-only, hence the archive mirror.
 
 The module sends nothing else: no cookies (`credentials: "omit"`), no
 identifiers, no telemetry.
