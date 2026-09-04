@@ -160,12 +160,12 @@ export const sources = {
         for (const r of page?.records || []) if (r?.did && r?.rkey) uris.add(`at://${r.did}/app.bsky.feed.post/${r.rkey}`);
       if (!uris.size) return [];
       const list = [...uris];
-      const posts = [];
-      for (let i = 0; i < list.length; i += 25) {
-        const query = list.slice(i, i + 25).map((uri) => "uris=" + encodeURIComponent(uri)).join("&");
-        const batch = await ctx.json("https://public.api.bsky.app/xrpc/app.bsky.feed.getPosts?" + query);
-        posts.push(...(batch?.posts || []));
-      }
+      const batches = [];
+      for (let i = 0; i < list.length; i += 25) batches.push(list.slice(i, i + 25));
+      const answers = await Promise.all(
+        batches.map((batch) => ctx.json("https://public.api.bsky.app/xrpc/app.bsky.feed.getPosts?" + batch.map((uri) => "uris=" + encodeURIComponent(uri)).join("&"))),
+      );
+      const posts = answers.flatMap((answer) => answer?.posts || []);
       const minEngagement = options?.bluesky?.minEngagement ?? 1;
       const engagement = (p) => (p.replyCount || 0) + (p.likeCount || 0) + (p.repostCount || 0) + (p.quoteCount || 0);
       const live = posts.filter((p) => engagement(p) >= minEngagement);
