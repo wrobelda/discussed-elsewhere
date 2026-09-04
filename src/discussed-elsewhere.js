@@ -403,11 +403,13 @@ export function elementClass(win = globalThis) {
       if (this.hasAttribute("sources")) options.sources = this.getAttribute("sources").split(",").map((s) => s.trim()).filter(Boolean);
       if (this.hasAttribute("lemmy-instance")) options.lemmy = { ...(options.lemmy || {}), instance: this.getAttribute("lemmy-instance") };
       if (this.hasAttribute("timeout")) options.timeout = Number(this.getAttribute("timeout"));
-      this.#controller = new AbortController();
-      options.signal = anySignal([this.#controller.signal, options.signal]);
+      // this lookup's own controller: a cancelled lookup that settles later
+      // must not render over the one that replaced it
+      const controller = (this.#controller = new AbortController());
+      options.signal = anySignal([controller.signal, options.signal]);
       const settle = (status, discussions, errors) => {
         const detail = { status, discussions, errors };
-        if (this.#controller.signal.aborted) return detail;
+        if (controller.signal.aborted) return detail;
         for (const { source, error } of errors) win.console?.warn?.(`discussed-elsewhere: ${source} failed:`, error);
         render(this, detail, messages);
         this.dispatchEvent(new win.CustomEvent("settled", { bubbles: true, detail }));

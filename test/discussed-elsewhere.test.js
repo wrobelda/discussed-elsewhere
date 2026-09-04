@@ -232,6 +232,21 @@ describe("<discussed-elsewhere>", () => {
     expect(fetch).toHaveBeenCalledTimes(1);
   });
 
+  it("a cancelled lookup that settles later does not render over the fresh one", async () => {
+    const { box } = page(`<${TAG} id="box" sources="hn"></${TAG}>`);
+    const hit = (id) => json({ hits: [{ objectID: id, url: "https://example.com/journal/post/", num_comments: 1 }] });
+    box.options = { fetch: vi.fn(() => new Promise((ok) => setTimeout(() => ok(hit("old")), 30))) };
+    let events = 0;
+    box.addEventListener("settled", () => events++);
+    box.load();
+    box.cancel();
+    box.options = { fetch: vi.fn(async () => hit("new")) };
+    await box.load();
+    await new Promise((ok) => setTimeout(ok, 60));
+    expect(box.querySelector("a").getAttribute("href")).toBe("https://news.ycombinator.com/item?id=new");
+    expect(events).toBe(1);
+  });
+
   it("define() registers a second tag name in the same window", async () => {
     const { dom } = page();
     expect(() => define("my-discussions", dom.window)).not.toThrow();
