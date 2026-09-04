@@ -1,17 +1,18 @@
-# Publish to npm when a version tag is pushed, through npm's trusted
-# publishing: the job presents a short-lived OIDC token, so no npm token is
-# stored, and the package gets provenance. One-time setup on npmjs.com after
-# the first, manual publish: package settings, Trusted Publisher, GitHub
-# Actions, this repository and workflow file name.
+# Release when a version tag is pushed: publish to npm, unless that version
+# is already there, then create the GitHub Release for the tag. Publishing
+# uses npm's trusted publishing: the job presents a short-lived OIDC token,
+# so no npm token is stored, and the package gets provenance. One-time setup
+# on npmjs.com after the first, manual publish: package settings, Trusted
+# Publisher, GitHub Actions, this repository and this workflow file name.
 name: Release
 on:
   push:
     tags: ["v*"]
 permissions:
-  contents: read
-  id-token: write
+  contents: write # the GitHub Release
+  id-token: write # npm trusted publishing
 jobs:
-  publish:
+  release:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -23,7 +24,19 @@ jobs:
       - run: npm ci --no-audit --no-fund
       - run: npm test
       - name: Tag matches package.json
+        id: version
         run: |
           version=$(node -p "require('./package.json').version")
           [ "${GITHUB_REF_NAME}" = "v${version}" ] || { echo "tag ${GITHUB_REF_NAME} but package.json says ${version}"; exit 1; }
-      - run: npm publish --provenance --access public
+          if npm view "discussed-elsewhere@${version}" version >/dev/null 2>&1; then
+            echo "published=true" >> "$GITHUB_OUTPUT"
+            echo "${version} is already on npm; not publishing again"
+          else
+            echo "published=false" >> "$GITHUB_OUTPUT"
+          fi
+      - if: steps.version.outputs.published == 'false'
+        run: npm publish --provenance --access public
+      - name: GitHub Release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: gh release create "${GITHUB_REF_NAME}" --title "${GITHUB_REF_NAME}" --notes "discussed-elsewhere ${GITHUB_REF_NAME#v} on npm: https://www.npmjs.com/package/discussed-elsewhere/v/${GITHUB_REF_NAME#v}" --verify-tag
