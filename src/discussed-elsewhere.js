@@ -410,7 +410,8 @@ export function elementClass(win = globalThis) {
       const options = { ...(this.options || {}) };
       if (this.hasAttribute("sources")) options.sources = this.getAttribute("sources").split(",").map((s) => s.trim()).filter(Boolean);
       if (this.hasAttribute("lemmy-instance")) options.lemmy = { ...(options.lemmy || {}), instance: this.getAttribute("lemmy-instance") };
-      if (this.hasAttribute("timeout")) options.timeout = Number(this.getAttribute("timeout"));
+      const timeout = Number(this.getAttribute("timeout"));
+      if (this.hasAttribute("timeout") && Number.isFinite(timeout) && timeout > 0) options.timeout = timeout;
       // this lookup's own controller: a cancelled lookup that settles later
       // must not render over the one that replaced it
       const controller = (this.#controller = new AbortController());

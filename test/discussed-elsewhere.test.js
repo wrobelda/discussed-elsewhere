@@ -175,6 +175,18 @@ describe("<discussed-elsewhere>", () => {
     expect(new URL(fetch.mock.calls[0][0]).searchParams.get("q")).toBe("https://other.test/a/");
   });
 
+  it("ignores a timeout attribute that is not a positive number", async () => {
+    const seen = [];
+    const fetch = vi.fn(async (url, init) => {
+      seen.push(init.signal);
+      return json({ hits: [] });
+    });
+    const { box } = page(`<${TAG} id="box" sources="hn" timeout=""></${TAG}>`);
+    box.options = { fetch };
+    await box.load();
+    expect(seen[0].aborted).toBe(false);
+  });
+
   it('loading="lazy" waits for the element to near the viewport', async () => {
     const observed = [];
     const IntersectionObserver = class {
