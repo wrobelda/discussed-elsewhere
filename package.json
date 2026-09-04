@@ -5,14 +5,34 @@
   "type": "module",
   "main": "src/discussed-elsewhere.js",
   "exports": "./src/discussed-elsewhere.js",
-  "files": ["src", "README.md", "LICENSE", "THIRD-PARTY.md"],
+  "files": [
+    "src",
+    "README.md",
+    "LICENSE",
+    "THIRD-PARTY.md"
+  ],
   "scripts": {
     "test": "vitest run",
     "smoke": "node example/smoke.mjs"
   },
-  "keywords": ["hacker-news", "reddit", "bluesky", "lemmy", "comments", "discussions", "static-site", "hugo"],
+  "keywords": [
+    "hacker-news",
+    "reddit",
+    "bluesky",
+    "lemmy",
+    "comments",
+    "discussions",
+    "static-site",
+    "hugo"
+  ],
   "author": "Dawid Wróbel",
   "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/wrobelda/discussed-elsewhere.git"
+  },
+  "homepage": "https://github.com/wrobelda/discussed-elsewhere#readme",
+  "bugs": "https://github.com/wrobelda/discussed-elsewhere/issues",
   "devDependencies": {
     "jsdom": "^26.1.0",
     "vitest": "^3.2.0"
